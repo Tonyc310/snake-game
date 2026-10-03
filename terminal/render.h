@@ -3,7 +3,7 @@
 
 #include "game.h"
 
-/** Draws the board, snake, food, and score, with `message` underneath. */
-void render_draw(const game_t *game, const char *message);
+/** Draws the board, snake, food, score, and session best, with `message` underneath. */
+void render_draw(const game_t *game, unsigned best, const char *message);
 
 #endif

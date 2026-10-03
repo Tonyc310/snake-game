@@ -6,7 +6,12 @@
 #include <stdint.h>
 #include <time.h>
 
-#define STEP_MS 150
+typedef struct {
+    game_t game;
+    unsigned best; /* best score this session */
+    bool paused;
+    bool running;
+} session_t;
 
 static long now_ms(void)
 {
@@ -16,74 +21,103 @@ static long now_ms(void)
     return now.tv_sec * 1000L + now.tv_nsec / 1000000L;
 }
 
-/* Returns false once the player quits. */
-static bool handle_key(game_t *game, int key)
+static uint32_t new_seed(void)
+{
+    /* Milliseconds differ between quick restarts; time() would replay a game within a second. */
+    return (uint32_t)now_ms();
+}
+
+static void steer(session_t *session, game_direction_t direction)
+{
+    if (!session->paused) {
+        game_turn(&session->game, direction);
+    }
+}
+
+static void handle_key(session_t *session, int key)
 {
     switch (key) {
     case KEY_UP:
     case 'w':
-        game_turn(game, GAME_UP);
+        steer(session, GAME_UP);
         break;
     case KEY_DOWN:
     case 's':
-        game_turn(game, GAME_DOWN);
+        steer(session, GAME_DOWN);
         break;
     case KEY_LEFT:
     case 'a':
-        game_turn(game, GAME_LEFT);
+        steer(session, GAME_LEFT);
         break;
     case KEY_RIGHT:
     case 'd':
-        game_turn(game, GAME_RIGHT);
+        steer(session, GAME_RIGHT);
+        break;
+    case 'p':
+        /* Pausing only means something mid-game. */
+        session->paused = !session->paused && session->game.status == GAME_PLAYING;
+        break;
+    case 'r':
+        game_init(&session->game, new_seed());
+        session->paused = false;
         break;
     case 'q':
-        return false;
+        session->running = false;
+        break;
     default:
         break;
     }
-    return true;
 }
 
-static const char *status_message(const game_t *game)
+static const char *status_message(const session_t *session)
 {
-    switch (game->status) {
+    if (session->paused) {
+        return "paused - p to resume, q to quit";
+    }
+    switch (session->game.status) {
     case GAME_OVER:
-        return "game over - q to quit";
+        return "game over - r to restart, q to quit";
     case GAME_WON:
-        return "you filled the board! - q to quit";
+        return "you filled the board! - r to restart, q to quit";
     default:
-        return "arrows or WASD to steer, q to quit";
+        return "arrows or WASD to steer, p to pause, q to quit";
     }
 }
 
 int main(void)
 {
-    game_t game;
-    bool running = true;
+    session_t session = {.best = 0, .paused = false, .running = true};
 
-    game_init(&game, (uint32_t)time(NULL));
+    game_init(&session.game, new_seed());
 
     initscr();
     cbreak(); /* keys arrive as they're pressed, not after Enter */
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
-    render_draw(&game, status_message(&game));
 
-    long next_step = now_ms() + STEP_MS;
-    while (running) {
+    long next_step = now_ms() + game_step_ms(&session.game);
+    while (session.running) {
+        render_draw(&session.game, session.best, status_message(&session));
+
         /* Wait for a key, but never past the next step, so the snake keeps a steady pace. */
         long wait = next_step - now_ms();
         timeout(wait > 0 ? (int)wait : 0);
 
         int key = getch();
         if (key != ERR) {
-            running = handle_key(&game, key);
+            handle_key(&session, key);
         }
-        if (now_ms() >= next_step) {
-            game_step(&game);
-            render_draw(&game, status_message(&game));
-            next_step += STEP_MS;
+
+        if (session.paused || session.game.status != GAME_PLAYING) {
+            /* Nothing moves, so keep the next step a full interval away for when play resumes. */
+            next_step = now_ms() + game_step_ms(&session.game);
+        } else if (now_ms() >= next_step) {
+            game_step(&session.game);
+            if (session.game.score > session.best) {
+                session.best = session.game.score;
+            }
+            next_step += game_step_ms(&session.game);
         }
     }
 

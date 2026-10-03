@@ -24,7 +24,7 @@ static void draw_cell(game_point_t cell, chtype glyph)
     mvaddch(cell.y + 1, cell.x * CELL_WIDTH + 1, glyph);
 }
 
-void render_draw(const game_t *game, const char *message)
+void render_draw(const game_t *game, unsigned best, const char *message)
 {
     erase();
     draw_border();
@@ -36,7 +36,7 @@ void render_draw(const game_t *game, const char *message)
         draw_cell(game_segment(game, i), 'o');
     }
     draw_cell(game_segment(game, 0), '@');
-    mvprintw(GAME_HEIGHT + 2, 0, "score %u", game->score);
+    mvprintw(GAME_HEIGHT + 2, 0, "score %u   best %u", game->score, best);
     mvaddstr(GAME_HEIGHT + 3, 0, message);
     refresh();
 }
