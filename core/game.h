@@ -1,7 +1,9 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define GAME_WIDTH 20
 #define GAME_HEIGHT 12
@@ -20,15 +22,19 @@ typedef struct {
     size_t length;
     game_direction_t moving;  /* direction of the last step */
     game_direction_t heading; /* direction of the next step */
+    game_point_t food;
+    bool has_food;  /* false once the snake fills the board */
+    unsigned score; /* food eaten */
+    uint32_t rng;   /* random-number state, so a seed replays the same game */
 } game_t;
 
-/** Starts a 3-segment snake in the middle of the board, heading right. */
-void game_init(game_t *game);
+/** Starts a 3-segment snake in the middle of the board, heading right; `seed` places the food. */
+void game_init(game_t *game, uint32_t seed);
 
 /** Sets the direction of the next step; a turn back into the neck is ignored. */
 void game_turn(game_t *game, game_direction_t direction);
 
-/** Moves the snake one cell. */
+/** Moves the snake one cell, eating and growing if it reaches the food. */
 void game_step(game_t *game);
 
 /** Segment `index` of the snake, counted from the head (0); `index` must be below the length. */

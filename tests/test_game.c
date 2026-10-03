@@ -3,23 +3,28 @@
 
 #include <stdlib.h>
 
+#define SEED 1u
+
 static game_t game;
 
 void setUp(void)
 {
-    game_init(&game);
+    game_init(&game, SEED);
 }
 
 void tearDown(void)
 {
 }
 
+static void expect_cell(game_point_t expected, game_point_t actual)
+{
+    TEST_ASSERT_EQUAL_INT(expected.x, actual.x);
+    TEST_ASSERT_EQUAL_INT(expected.y, actual.y);
+}
+
 static void expect_head(int x, int y)
 {
-    game_point_t head = game_segment(&game, 0);
-
-    TEST_ASSERT_EQUAL_INT(x, head.x);
-    TEST_ASSERT_EQUAL_INT(y, head.y);
+    expect_cell((game_point_t){x, y}, game_segment(&game, 0));
 }
 
 /* Each segment must touch the one ahead of it: no gaps and no diagonal steps. */
@@ -31,6 +36,24 @@ static void expect_body_connected(void)
 
         TEST_ASSERT_EQUAL_INT(1, abs(ahead.x - behind.x) + abs(ahead.y - behind.y));
     }
+}
+
+static void expect_food_off_snake(void)
+{
+    for (size_t i = 0; i < game.length; i++) {
+        game_point_t segment = game_segment(&game, i);
+
+        TEST_ASSERT_FALSE(segment.x == game.food.x && segment.y == game.food.y);
+    }
+}
+
+/* Cell n of a path that runs back and forth along the rows, covering the whole board. */
+static game_point_t serpentine(int n)
+{
+    int y = n / GAME_WIDTH;
+    int x = n % GAME_WIDTH;
+
+    return (game_point_t){y % 2 == 0 ? x : GAME_WIDTH - 1 - x, y};
 }
 
 static void test_body_follows_the_head(void)
@@ -68,10 +91,60 @@ static void test_turns_but_never_reverses_into_its_neck(void)
     expect_head(GAME_WIDTH / 2 + 1, GAME_HEIGHT / 2 - 1);
 }
 
+static void test_eating_grows_the_snake_and_scores(void)
+{
+    const game_point_t ahead = {GAME_WIDTH / 2 + 1, GAME_HEIGHT / 2};
+    const game_point_t tail = game_segment(&game, game.length - 1);
+    game_t replay;
+
+    /* The same seed must replay the same food, before and after eating. */
+    game_init(&replay, SEED);
+    expect_cell(replay.food, game.food);
+    game.food = ahead;
+    replay.food = ahead;
+
+    game_step(&game);
+    game_step(&replay);
+
+    TEST_ASSERT_EQUAL_size_t(4, game.length);
+    TEST_ASSERT_EQUAL_UINT(1, game.score);
+    expect_cell(tail, game_segment(&game, game.length - 1));
+    expect_food_off_snake();
+    expect_cell(replay.food, game.food);
+
+    /* A zero seed must still give a working generator, not one stuck at zero. */
+    game_init(&replay, 0);
+    TEST_ASSERT_NOT_EQUAL_UINT32(0, replay.rng);
+}
+
+static void test_food_only_lands_on_free_cells_until_the_board_is_full(void)
+{
+    /* Lay the snake along the serpentine with two cells left: food right ahead, then one more. */
+    for (int n = 0; n < GAME_MAX_LENGTH - 2; n++) {
+        game.body[n] = serpentine(n);
+    }
+    game.head = GAME_MAX_LENGTH - 3;
+    game.length = GAME_MAX_LENGTH - 2;
+    game.moving = GAME_LEFT;
+    game.heading = GAME_LEFT;
+    game.food = serpentine(GAME_MAX_LENGTH - 2);
+
+    game_step(&game);
+    TEST_ASSERT_TRUE(game.has_food);
+    expect_cell(serpentine(GAME_MAX_LENGTH - 1), game.food);
+
+    game_step(&game);
+    TEST_ASSERT_EQUAL_size_t(GAME_MAX_LENGTH, game.length);
+    TEST_ASSERT_FALSE(game.has_food);
+    expect_body_connected();
+}
+
 int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_body_follows_the_head);
     RUN_TEST(test_turns_but_never_reverses_into_its_neck);
+    RUN_TEST(test_eating_grows_the_snake_and_scores);
+    RUN_TEST(test_food_only_lands_on_free_cells_until_the_board_is_full);
     return UNITY_END();
 }
