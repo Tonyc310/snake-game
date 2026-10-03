@@ -11,6 +11,8 @@
 
 typedef enum { GAME_UP, GAME_DOWN, GAME_LEFT, GAME_RIGHT } game_direction_t;
 
+typedef enum { GAME_PLAYING, GAME_OVER, GAME_WON } game_status_t;
+
 typedef struct {
     int x;
     int y; /* grows downward, like screen rows */
@@ -26,6 +28,7 @@ typedef struct {
     bool has_food;  /* false once the snake fills the board */
     unsigned score; /* food eaten */
     uint32_t rng;   /* random-number state, so a seed replays the same game */
+    game_status_t status;
 } game_t;
 
 /** Starts a 3-segment snake in the middle of the board, heading right; `seed` places the food. */
@@ -34,7 +37,7 @@ void game_init(game_t *game, uint32_t seed);
 /** Sets the direction of the next step; a turn back into the neck is ignored. */
 void game_turn(game_t *game, game_direction_t direction);
 
-/** Moves the snake one cell, eating and growing if it reaches the food. */
+/** Moves the snake one cell: eats and grows on food, ends the game on a wall or its own body. */
 void game_step(game_t *game);
 
 /** Segment `index` of the snake, counted from the head (0); `index` must be below the length. */

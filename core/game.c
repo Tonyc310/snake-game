@@ -22,9 +22,15 @@ static bool same_cell(game_point_t a, game_point_t b)
     return a.x == b.x && a.y == b.y;
 }
 
-static bool on_snake(const game_t *game, game_point_t cell)
+static bool on_board(game_point_t cell)
 {
-    for (size_t i = 0; i < game->length; i++) {
+    return cell.x >= 0 && cell.x < GAME_WIDTH && cell.y >= 0 && cell.y < GAME_HEIGHT;
+}
+
+/* True if `cell` is one of the first `count` segments, counted from the head. */
+static bool touches_body(const game_t *game, game_point_t cell, size_t count)
+{
+    for (size_t i = 0; i < count; i++) {
         if (same_cell(game_segment(game, i), cell)) {
             return true;
         }
@@ -58,7 +64,7 @@ static void place_food(game_t *game)
         for (int x = 0; x < GAME_WIDTH; x++) {
             game_point_t cell = {x, y};
 
-            if (!on_snake(game, cell) && skip-- == 0u) {
+            if (!touches_body(game, cell, game->length) && skip-- == 0u) {
                 game->food = cell;
                 return;
             }
@@ -79,6 +85,7 @@ void game_init(game_t *game, uint32_t seed)
     game->moving = GAME_RIGHT;
     game->heading = GAME_RIGHT;
     game->score = 0;
+    game->status = GAME_PLAYING;
     /* Zero would keep xorshift at zero forever. */
     game->rng = seed != 0u ? seed : 1u;
     place_food(game);
@@ -94,20 +101,34 @@ void game_turn(game_t *game, game_direction_t direction)
 
 void game_step(game_t *game)
 {
+    if (game->status != GAME_PLAYING) {
+        return;
+    }
     game_point_t head = game->body[game->head];
     game_point_t delta = deltas[game->heading];
     game_point_t next = {head.x + delta.x, head.y + delta.y};
+    bool eats = game->has_food && same_cell(next, game->food);
+    /* The tail leaves its cell this step unless the snake grows, so moving into it is safe. */
+    size_t solid = eats ? game->length : game->length - 1u;
+
+    if (!on_board(next) || touches_body(game, next, solid)) {
+        game->status = GAME_OVER;
+        return;
+    }
 
     /* The tail needs no work: whatever lies past `length` from the head drops off the snake. */
     game->head = (game->head + 1u) % GAME_MAX_LENGTH;
     game->body[game->head] = next;
     game->moving = game->heading;
 
-    if (game->has_food && same_cell(next, game->food)) {
+    if (eats) {
         /* Growing is just keeping the tail that this step would have dropped. */
         game->length++;
         game->score++;
         place_food(game);
+        if (!game->has_food) {
+            game->status = GAME_WON;
+        }
     }
 }
 

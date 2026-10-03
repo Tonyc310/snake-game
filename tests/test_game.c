@@ -47,6 +47,17 @@ static void expect_food_off_snake(void)
     }
 }
 
+/* Puts food on the cell to the right of the head and steps onto it, then switches food off. */
+static void eat_to_the_right(void)
+{
+    game_point_t head = game_segment(&game, 0);
+
+    game.food = (game_point_t){head.x + 1, head.y};
+    game.has_food = true;
+    game_step(&game);
+    game.has_food = false;
+}
+
 /* Cell n of a path that runs back and forth along the rows, covering the whole board. */
 static game_point_t serpentine(int n)
 {
@@ -66,6 +77,7 @@ static void test_body_follows_the_head(void)
     };
     const int steps = 40 * 12;
 
+    game.has_food = false; /* so the snake can't grow into itself mid-lap */
     game_step(&game);
     expect_head(GAME_WIDTH / 2 + 1, GAME_HEIGHT / 2);
 
@@ -117,7 +129,48 @@ static void test_eating_grows_the_snake_and_scores(void)
     TEST_ASSERT_NOT_EQUAL_UINT32(0, replay.rng);
 }
 
-static void test_food_only_lands_on_free_cells_until_the_board_is_full(void)
+static void test_running_into_a_wall_ends_the_game(void)
+{
+    game.has_food = false;
+    for (int x = GAME_WIDTH / 2 + 1; x < GAME_WIDTH; x++) {
+        game_step(&game);
+    }
+    expect_head(GAME_WIDTH - 1, GAME_HEIGHT / 2);
+    TEST_ASSERT_EQUAL(GAME_PLAYING, game.status);
+
+    game_step(&game);
+    TEST_ASSERT_EQUAL(GAME_OVER, game.status);
+    expect_head(GAME_WIDTH - 1, GAME_HEIGHT / 2); /* stopped where it hit */
+}
+
+static void test_chasing_the_tail_is_safe_but_biting_the_body_is_not(void)
+{
+    /* Circling a 2x2 square steps into the cell the tail is leaving, until the snake is longer. */
+    static const game_direction_t loop[] = {GAME_DOWN, GAME_LEFT, GAME_UP, GAME_RIGHT};
+
+    game.has_food = false;
+    eat_to_the_right(); /* length 4 */
+    for (int i = 0; i < 8; i++) {
+        game_turn(&game, loop[i % 4]);
+        game_step(&game);
+    }
+    TEST_ASSERT_EQUAL(GAME_PLAYING, game.status);
+
+    eat_to_the_right(); /* length 5 */
+    for (int i = 0; i < 3; i++) {
+        game_turn(&game, loop[i]);
+        game_step(&game);
+    }
+    TEST_ASSERT_EQUAL(GAME_OVER, game.status);
+
+    /* A finished game stays finished, even when the next move would be legal. */
+    game_turn(&game, GAME_LEFT);
+    game_step(&game);
+    TEST_ASSERT_EQUAL(GAME_OVER, game.status);
+    expect_head(GAME_WIDTH / 2 + 1, GAME_HEIGHT / 2 + 1);
+}
+
+static void test_food_only_lands_on_free_cells_and_a_full_board_wins(void)
 {
     /* Lay the snake along the serpentine with two cells left: food right ahead, then one more. */
     for (int n = 0; n < GAME_MAX_LENGTH - 2; n++) {
@@ -136,6 +189,7 @@ static void test_food_only_lands_on_free_cells_until_the_board_is_full(void)
     game_step(&game);
     TEST_ASSERT_EQUAL_size_t(GAME_MAX_LENGTH, game.length);
     TEST_ASSERT_FALSE(game.has_food);
+    TEST_ASSERT_EQUAL(GAME_WON, game.status);
     expect_body_connected();
 }
 
@@ -145,6 +199,8 @@ int main(void)
     RUN_TEST(test_body_follows_the_head);
     RUN_TEST(test_turns_but_never_reverses_into_its_neck);
     RUN_TEST(test_eating_grows_the_snake_and_scores);
-    RUN_TEST(test_food_only_lands_on_free_cells_until_the_board_is_full);
+    RUN_TEST(test_running_into_a_wall_ends_the_game);
+    RUN_TEST(test_chasing_the_tail_is_safe_but_biting_the_body_is_not);
+    RUN_TEST(test_food_only_lands_on_free_cells_and_a_full_board_wins);
     return UNITY_END();
 }
