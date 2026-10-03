@@ -129,6 +129,17 @@ static void test_eating_grows_the_snake_and_scores(void)
     TEST_ASSERT_NOT_EQUAL_UINT32(0, replay.rng);
 }
 
+static void test_speeds_up_with_each_food_down_to_a_floor(void)
+{
+    TEST_ASSERT_EQUAL_UINT(150, game_step_ms(&game));
+    game.score = 4;
+    TEST_ASSERT_EQUAL_UINT(130, game_step_ms(&game));
+    game.score = 18; /* exactly reaches the floor */
+    TEST_ASSERT_EQUAL_UINT(60, game_step_ms(&game));
+    game.score = 25; /* past it: without the floor this would be 25 ms */
+    TEST_ASSERT_EQUAL_UINT(60, game_step_ms(&game));
+}
+
 static void test_running_into_a_wall_ends_the_game(void)
 {
     game.has_food = false;
@@ -199,6 +210,7 @@ int main(void)
     RUN_TEST(test_body_follows_the_head);
     RUN_TEST(test_turns_but_never_reverses_into_its_neck);
     RUN_TEST(test_eating_grows_the_snake_and_scores);
+    RUN_TEST(test_speeds_up_with_each_food_down_to_a_floor);
     RUN_TEST(test_running_into_a_wall_ends_the_game);
     RUN_TEST(test_chasing_the_tail_is_safe_but_biting_the_body_is_not);
     RUN_TEST(test_food_only_lands_on_free_cells_and_a_full_board_wins);

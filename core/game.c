@@ -1,6 +1,9 @@
 #include "game.h"
 
 #define START_LENGTH 3u
+#define START_STEP_MS 150u
+#define FASTEST_STEP_MS 60u
+#define STEP_MS_PER_FOOD 5u
 
 static const game_point_t deltas[] = {
     [GAME_UP] = {0, -1},
@@ -130,6 +133,17 @@ void game_step(game_t *game)
             game->status = GAME_WON;
         }
     }
+}
+
+unsigned game_step_ms(const game_t *game)
+{
+    unsigned faster_by = game->score * STEP_MS_PER_FOOD;
+
+    /* The floor keeps a long snake playable; 60 ms is about the limit of reaction time here. */
+    if (faster_by >= START_STEP_MS - FASTEST_STEP_MS) {
+        return FASTEST_STEP_MS;
+    }
+    return START_STEP_MS - faster_by;
 }
 
 game_point_t game_segment(const game_t *game, size_t index)

@@ -40,6 +40,9 @@ void game_turn(game_t *game, game_direction_t direction);
 /** Moves the snake one cell: eats and grows on food, ends the game on a wall or its own body. */
 void game_step(game_t *game);
 
+/** Milliseconds between steps: 150 at the start, 5 less per food eaten, never below 60. */
+unsigned game_step_ms(const game_t *game);
+
 /** Segment `index` of the snake, counted from the head (0); `index` must be below the length. */
 game_point_t game_segment(const game_t *game, size_t index);
 
