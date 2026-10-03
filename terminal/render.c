@@ -5,6 +5,8 @@
 /* Terminal characters are about twice as tall as wide, so each game cell takes two columns. */
 #define CELL_WIDTH 2
 #define BOARD_COLUMNS (GAME_WIDTH * CELL_WIDTH)
+#define SCREEN_COLUMNS (BOARD_COLUMNS + 2) /* board plus its border */
+#define SCREEN_LINES (GAME_HEIGHT + 4)     /* board, border, score line, message line */
 
 static void draw_border(void)
 {
@@ -24,9 +26,18 @@ static void draw_cell(game_point_t cell, chtype glyph)
     mvaddch(cell.y + 1, cell.x * CELL_WIDTH + 1, glyph);
 }
 
-void render_draw(const game_t *game, unsigned best, const char *message)
+bool render_draw(const game_t *game, unsigned best, const char *message)
 {
     erase();
+    /* LINES and COLS follow resizes: ncurses updates them when getch() returns KEY_RESIZE. */
+    if (LINES < SCREEN_LINES || COLS < SCREEN_COLUMNS) {
+        /* Short lines, since the terminal is already too narrow for long ones. */
+        mvaddstr(0, 0, "Terminal too small.");
+        mvprintw(1, 0, "Have %dx%d, need %dx%d.", COLS, LINES, SCREEN_COLUMNS, SCREEN_LINES);
+        mvaddstr(2, 0, "Resize to keep playing.");
+        refresh();
+        return false;
+    }
     draw_border();
     if (game->has_food) {
         draw_cell(game->food, '*');
@@ -37,6 +48,7 @@ void render_draw(const game_t *game, unsigned best, const char *message)
     }
     draw_cell(game_segment(game, 0), '@');
     mvprintw(GAME_HEIGHT + 2, 0, "score %u   best %u", game->score, best);
-    mvaddstr(GAME_HEIGHT + 3, 0, message);
+    mvaddnstr(GAME_HEIGHT + 3, 0, message, SCREEN_COLUMNS);
     refresh();
+    return true;
 }

@@ -3,7 +3,10 @@
 
 #include "game.h"
 
-/** Draws the board, snake, food, score, and session best, with `message` underneath. */
-void render_draw(const game_t *game, unsigned best, const char *message);
+#include <stdbool.h>
+
+/** Draws the game with `message` below; if it can't fit, asks for a bigger terminal and returns
+ * false. */
+bool render_draw(const game_t *game, unsigned best, const char *message);
 
 #endif

@@ -69,18 +69,19 @@ static void handle_key(session_t *session, int key)
     }
 }
 
+/* Messages must fit within the board's width, which sets the minimum terminal size. */
 static const char *status_message(const session_t *session)
 {
     if (session->paused) {
-        return "paused - p to resume, q to quit";
+        return "paused - p resume, q quit";
     }
     switch (session->game.status) {
     case GAME_OVER:
-        return "game over - r to restart, q to quit";
+        return "game over - r restart, q quit";
     case GAME_WON:
-        return "you filled the board! - r to restart, q to quit";
+        return "board filled, you win! r restart, q quit";
     default:
-        return "arrows or WASD to steer, p to pause, q to quit";
+        return "arrows/WASD steer, p pause, q quit";
     }
 }
 
@@ -98,7 +99,11 @@ int main(void)
 
     long next_step = now_ms() + game_step_ms(&session.game);
     while (session.running) {
-        render_draw(&session.game, session.best, status_message(&session));
+        if (!render_draw(&session.game, session.best, status_message(&session)) &&
+            session.game.status == GAME_PLAYING) {
+            /* Don't let the snake run while the board can't be seen. */
+            session.paused = true;
+        }
 
         /* Wait for a key, but never past the next step, so the snake keeps a steady pace. */
         long wait = next_step - now_ms();
