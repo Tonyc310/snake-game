@@ -11,5 +11,12 @@ target_compile_options(project_warnings INTERFACE -Wall -Wextra -Werror -pedanti
 add_subdirectory(core)
 add_subdirectory(terminal)
 
+find_package(SDL3 CONFIG QUIET)
+if(SDL3_FOUND)
+    add_subdirectory(desktop)
+else()
+    message(STATUS "SDL3 not found: skipping the desktop front end")
+endif()
+
 enable_testing()
 add_subdirectory(tests)
