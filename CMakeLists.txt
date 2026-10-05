@@ -18,6 +18,12 @@ endif()
 
 add_subdirectory(core)
 
+# A bare-metal toolchain builds only the firmware; the other front ends and the tests need an OS.
+if(CMAKE_SYSTEM_NAME STREQUAL "Generic")
+    add_subdirectory(stm32)
+    return()
+endif()
+
 # Each front end builds only where its library exists: Windows has no curses, for one.
 find_package(Curses QUIET)
 if(CURSES_FOUND)

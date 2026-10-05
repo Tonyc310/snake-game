@@ -13,7 +13,7 @@ jobs:
       - name: Check formatting
         run: >-
           pipx run clang-format==23.1.2 --dry-run --Werror
-          core/*.[ch] terminal/*.[ch] desktop/*.[ch] tests/*.c
+          core/*.[ch] terminal/*.[ch] desktop/*.[ch] stm32/*.[ch] tests/*.c
 
   sanitizers:
     runs-on: ubuntu-24.04
@@ -38,6 +38,21 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  stm32:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the Arm toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
+
+      - name: Build the firmware
+        run: |
+          cmake --preset stm32
+          cmake --build --preset stm32
 
   platforms:
     strategy:
