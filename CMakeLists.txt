@@ -16,6 +16,8 @@ else()
     target_compile_options(project_warnings INTERFACE -Wall -Wextra -Werror -pedantic)
 endif()
 
+enable_testing()
+
 add_subdirectory(core)
 
 # A bare-metal toolchain builds only the firmware; the other front ends and the tests need an OS.
@@ -49,5 +51,4 @@ else()
     message(STATUS "SDL3 not found: skipping the desktop front end (SNAKE_FETCH_SDL3=ON downloads it)")
 endif()
 
-enable_testing()
 add_subdirectory(tests)

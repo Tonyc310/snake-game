@@ -41,18 +41,43 @@ jobs:
 
   stm32:
     runs-on: ubuntu-24.04
+    env:
+      RENODE_VERSION: 1.17.0
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install the Arm toolchain
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # libgdiplus lets Renode's frame tester load the reference PNGs.
+      - name: Install the Arm toolchain and libgdiplus
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi libgdiplus
+
+      - name: Install Renode
+        run: |
+          curl -fsSL "https://github.com/renode/renode/releases/download/v${RENODE_VERSION}/renode-${RENODE_VERSION}.linux-portable.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          renode_dir="$RUNNER_TEMP/renode_${RENODE_VERSION}-portable"
+          pip install -r "$renode_dir/tests/requirements.txt"
+          echo "$renode_dir" >> "$GITHUB_PATH"
 
       - name: Build the firmware
         run: |
           cmake --preset stm32
           cmake --build --preset stm32
+
+      - name: Renode tests
+        run: ctest --test-dir build/stm32 --output-on-failure --no-tests=error
+
+      - name: Upload Renode results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: renode-results
+          path: build/stm32/stm32/renode/
 
   platforms:
     strategy:

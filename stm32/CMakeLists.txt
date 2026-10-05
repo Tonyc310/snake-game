@@ -21,7 +21,7 @@ target_compile_definitions(cmsis_device PUBLIC STM32F446xx)
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/stm32f446re.ld)
 
-add_executable(stm32-snake main.c)
+add_executable(stm32-snake main.c board.c lcd.c)
 set_target_properties(stm32-snake PROPERTIES
     SUFFIX .elf
     LINK_DEPENDS ${LINKER_SCRIPT})
@@ -30,3 +30,14 @@ target_link_options(stm32-snake PRIVATE
     -T${LINKER_SCRIPT}
     -Wl,-Map=$<TARGET_FILE_DIR:stm32-snake>/stm32-snake.map
     -Wl,--print-memory-usage)
+
+find_program(RENODE_TEST renode-test)
+if(RENODE_TEST)
+    set(RENODE_RESULTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/renode)
+    file(MAKE_DIRECTORY ${RENODE_RESULTS_DIR})
+    # renode-test always writes its results to the working directory, so keep them in the build tree.
+    add_test(NAME renode_snake
+        COMMAND ${RENODE_TEST} --variable ELF:$<TARGET_FILE:stm32-snake>
+                ${CMAKE_CURRENT_SOURCE_DIR}/renode/snake.robot
+        WORKING_DIRECTORY ${RENODE_RESULTS_DIR})
+endif()

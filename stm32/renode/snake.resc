@@ -1,0 +1,21 @@
+:name: stm32-snake
+:description: Nucleo-F446RE with an ILI9341 display, running the snake firmware.
+
+$bin?=$ORIGIN/../../build/stm32/stm32/stm32-snake.elf
+
+# The display model is compiled when it's loaded, so it has to come before the platform.
+include $ORIGIN/Ili9341.cs
+
+mach create "nucleo-f446re"
+machine LoadPlatformDescription $ORIGIN/nucleo-f446re.repl
+
+# Renode clocks SysTick at 72 MHz; the firmware runs on the 16 MHz internal clock.
+sysbus.nvic Frequency 16000000
+
+showAnalyzer sysbus.spi1.lcd
+
+macro reset
+"""
+    sysbus LoadELF $bin
+"""
+runMacro $reset

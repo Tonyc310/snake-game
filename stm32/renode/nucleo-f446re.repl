@@ -1,0 +1,15 @@
+// Nucleo-F446RE with an ILI9341 display module on SPI1, wired to the Arduino header.
+using "platforms/cpus/stm32f4.repl"
+
+lcd: Video.ILI9341 @ spi1
+    landscape: true
+
+// Chip select D10 (PB6), data/command D9 (PC7), reset D8 (PA9).
+gpioPortB:
+    6 -> lcd@0
+
+gpioPortC:
+    7 -> lcd@1
+
+gpioPortA:
+    9 -> lcd@2
