@@ -48,7 +48,7 @@ static void fill_cell(SDL_Renderer *renderer, game_point_t cell, float inset)
 
 static void draw_hud(SDL_Renderer *renderer, const game_t *game, unsigned best)
 {
-    const char *controls = "P PAUSE";
+    const char *controls = "P PAUSE  M MUTE";
     const float y = (RENDER_HUD - GLYPH) / 2.0f;
     char score[48];
 

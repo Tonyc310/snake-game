@@ -6,6 +6,7 @@
 
 #include "game.h"
 #include "render.h"
+#include "sound.h"
 
 typedef struct {
     SDL_Window *window;
@@ -91,6 +92,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     if (!SDL_SetRenderVSync(app->renderer, 1)) {
         SDL_SetHint(SDL_HINT_MAIN_CALLBACK_RATE, "60");
     }
+    if (!sound_init()) {
+        SDL_Log("No audio device, playing without sound: %s", SDL_GetError());
+    }
     restart(app);
     return SDL_APP_CONTINUE;
 }
@@ -104,8 +108,17 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         /* Nothing moves, so keep the next step a full interval away for when play resumes. */
         app->next_step_ms = now + game_step_ms(&app->game);
     } else if (now >= app->next_step_ms) {
+        const unsigned score = app->game.score;
+
         game_step(&app->game);
         app->best = SDL_max(app->best, app->game.score);
+        if (app->game.status == GAME_OVER) {
+            sound_play(SOUND_CRASH);
+        } else if (app->game.status == GAME_WON) {
+            sound_play(SOUND_WIN);
+        } else if (app->game.score > score) {
+            sound_play(SOUND_EAT);
+        }
         app->next_step_ms += game_step_ms(&app->game);
         /* Keep a steady pace, but after a stall skip ahead instead of rushing to catch up. */
         if (app->next_step_ms < now) {
@@ -143,6 +156,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     case SDL_SCANCODE_R:
         restart(app);
         break;
+    case SDL_SCANCODE_M:
+        sound_toggle_mute();
+        break;
     default:
         if (!app->paused && direction_for(event->key.scancode, &direction)) {
             game_turn(&app->game, direction);
@@ -157,6 +173,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     app_t *app = appstate;
 
     (void)result;
+    sound_quit();
     if (app != NULL) {
         SDL_DestroyRenderer(app->renderer);
         SDL_DestroyWindow(app->window);
