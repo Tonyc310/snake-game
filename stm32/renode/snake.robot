@@ -11,6 +11,6 @@ Start Board
     Execute Command           screen AttachTo sysbus.spi1.lcd
 
 *** Test Cases ***
-Clears The Screen To The Background Colour
+Draws The Opening Board
     Start Board
-    Execute Command           screen WaitForFrame @${FRAMES}/background.png
+    Execute Command           screen WaitForFrame @${FRAMES}/opening.png

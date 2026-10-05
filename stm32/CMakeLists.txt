@@ -21,11 +21,11 @@ target_compile_definitions(cmsis_device PUBLIC STM32F446xx)
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/stm32f446re.ld)
 
-add_executable(stm32-snake main.c board.c lcd.c)
+add_executable(stm32-snake main.c board.c lcd.c render.c)
 set_target_properties(stm32-snake PROPERTIES
     SUFFIX .elf
     LINK_DEPENDS ${LINKER_SCRIPT})
-target_link_libraries(stm32-snake PRIVATE cmsis_device project_warnings)
+target_link_libraries(stm32-snake PRIVATE snake_core cmsis_device project_warnings)
 target_link_options(stm32-snake PRIVATE
     -T${LINKER_SCRIPT}
     -Wl,-Map=$<TARGET_FILE_DIR:stm32-snake>/stm32-snake.map
