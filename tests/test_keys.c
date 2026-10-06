@@ -29,10 +29,12 @@ void tearDown(void)
 {
 }
 
-static void test_letters_and_arrow_keys_steer(void)
+static void test_letters_and_arrow_keys_decode(void)
 {
     TEST_ASSERT_EQUAL(KEYS_UP, decode("w"));
     TEST_ASSERT_EQUAL(KEYS_LEFT, decode("A"));
+    TEST_ASSERT_EQUAL(KEYS_PAUSE, decode("p"));
+    TEST_ASSERT_EQUAL(KEYS_RESTART, decode("R"));
     TEST_ASSERT_EQUAL(KEYS_DOWN, decode("\x1b[B"));
     TEST_ASSERT_EQUAL(KEYS_RIGHT, decode("\x1bOC"));
     TEST_ASSERT_EQUAL(KEYS_LEFT, decode("\x1b[1;5D"));
@@ -48,7 +50,7 @@ static void test_other_input_is_ignored_without_losing_track(void)
 int main(void)
 {
     UNITY_BEGIN();
-    RUN_TEST(test_letters_and_arrow_keys_steer);
+    RUN_TEST(test_letters_and_arrow_keys_decode);
     RUN_TEST(test_other_input_is_ignored_without_losing_track);
     return UNITY_END();
 }

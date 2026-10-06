@@ -37,6 +37,12 @@ static keys_input_t letter(uint8_t byte)
     case 'd':
     case 'D':
         return KEYS_RIGHT;
+    case 'p':
+    case 'P':
+        return KEYS_PAUSE;
+    case 'r':
+    case 'R':
+        return KEYS_RESTART;
     default:
         return KEYS_NONE;
     }

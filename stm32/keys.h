@@ -3,7 +3,15 @@
 
 #include <stdint.h>
 
-typedef enum { KEYS_NONE, KEYS_UP, KEYS_DOWN, KEYS_LEFT, KEYS_RIGHT } keys_input_t;
+typedef enum {
+    KEYS_NONE,
+    KEYS_UP,
+    KEYS_DOWN,
+    KEYS_LEFT,
+    KEYS_RIGHT,
+    KEYS_PAUSE,
+    KEYS_RESTART,
+} keys_input_t;
 
 typedef struct {
     uint8_t state; /* how far into an escape sequence the last bytes went */
