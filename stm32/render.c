@@ -62,32 +62,41 @@ static unsigned shown_score;
 static unsigned shown_best;
 static const render_banner_t *shown_banner;
 
-static void fill_square(uint16_t left, uint16_t top, uint16_t inset, uint16_t colour)
-{
-    const uint16_t size = (uint16_t)(RENDER_CELL - (2u * inset));
-
-    lcd_fill_rect((uint16_t)(left + inset), (uint16_t)(top + inset), size, size, colour);
-}
-
+/* One window per cell, square and surround together, so the panel never shows a cell half drawn. */
 static void draw_cell(int x, int y, cell_t cell)
 {
     const uint16_t left = (uint16_t)((unsigned)x * RENDER_CELL);
     const uint16_t top = (uint16_t)(RENDER_HUD + ((unsigned)y * RENDER_CELL));
+    uint16_t inset = RENDER_CELL / 2u; /* an empty cell has no square */
+    uint16_t colour = BOARD;
 
-    fill_square(left, top, 0u, BOARD);
     switch (cell) {
     case CELL_FOOD:
-        fill_square(left, top, FOOD_INSET, FOOD);
+        inset = FOOD_INSET;
+        colour = FOOD;
         break;
     case CELL_BODY:
-        fill_square(left, top, SEGMENT_INSET, BODY);
+        inset = SEGMENT_INSET;
+        colour = BODY;
         break;
     case CELL_HEAD:
-        fill_square(left, top, SEGMENT_INSET, HEAD);
+        inset = SEGMENT_INSET;
+        colour = HEAD;
         break;
     default:
         break;
     }
+
+    lcd_begin_pixels(left, top, RENDER_CELL, RENDER_CELL);
+    for (uint16_t row = 0u; row < RENDER_CELL; row++) {
+        for (uint16_t column = 0u; column < RENDER_CELL; column++) {
+            const bool inside = (row >= inset) && (row < (RENDER_CELL - inset)) &&
+                                (column >= inset) && (column < (RENDER_CELL - inset));
+
+            lcd_write_pixel(inside ? colour : BOARD);
+        }
+    }
+    lcd_end_pixels();
 }
 
 /* Glyphs are drawn opaque, so new text covers old text without clearing it first. */
