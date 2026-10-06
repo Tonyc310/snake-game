@@ -8,7 +8,14 @@ FetchContent_Declare(cmsis_device_f4
     GIT_REPOSITORY https://github.com/STMicroelectronics/cmsis-device-f4.git
     GIT_TAG        v2.6.11
     GIT_SHALLOW    TRUE)
-FetchContent_MakeAvailable(cmsis_core cmsis_device_f4)
+# Only its UART driver is built here, so SOURCE_SUBDIR points where there's no CMakeLists.txt and
+# its own firmware build stays out.
+FetchContent_Declare(stm32_uart_driver
+    GIT_REPOSITORY https://github.com/Tonyc310/stm32-uart-driver.git
+    GIT_TAG        v1.0.0
+    GIT_SHALLOW    TRUE
+    SOURCE_SUBDIR  driver-only)
+FetchContent_MakeAvailable(cmsis_core cmsis_device_f4 stm32_uart_driver)
 
 # ST's startup code and SystemInit, kept apart so our warning flags don't apply to vendor code.
 add_library(cmsis_device OBJECT
@@ -21,7 +28,13 @@ target_compile_definitions(cmsis_device PUBLIC STM32F446xx)
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/stm32f446re.ld)
 
-add_executable(stm32-snake main.c board.c lcd.c render.c)
+add_executable(stm32-snake main.c board.c keys.c lcd.c render.c
+    ${stm32_uart_driver_SOURCE_DIR}/src/uart.c
+    ${stm32_uart_driver_SOURCE_DIR}/src/ring_buffer.c)
+# The driver finds this board's uart_ports.h here.
+target_include_directories(stm32-snake PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${stm32_uart_driver_SOURCE_DIR}/src)
 set_target_properties(stm32-snake PROPERTIES
     SUFFIX .elf
     LINK_DEPENDS ${LINKER_SCRIPT})

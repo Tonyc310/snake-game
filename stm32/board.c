@@ -1,20 +1,35 @@
 #include "board.h"
 
 #include "stm32f4xx.h"
+#include "uart_hw.h"
 
 #include <stdatomic.h>
 
 #define AF_SPI1 5u
+#define AF_USART2 7u
 #define TICK_HZ 1000u
 
 static _Atomic uint32_t uptime_ms; /* written only by SysTick_Handler */
 
+const uart_hw_t uart_hw[UART_COUNT] = {
+    [UART_CONSOLE] = {.regs = USART2, .irq = USART2_IRQn},
+};
+
 void board_init(void)
 {
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN | RCC_AHB1ENR_GPIOCEN;
+    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
     RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
     /* Read back so the clocks are running before their registers are touched (STM32F4 errata). */
     (void)RCC->APB2ENR;
+
+    /* Console: PA2 (TX) and PA3 (RX) as USART2, wired to the ST-LINK's virtual COM port. */
+    GPIOA->AFR[0] = (GPIOA->AFR[0] & ~(GPIO_AFRL_AFSEL2 | GPIO_AFRL_AFSEL3)) |
+                    (AF_USART2 << GPIO_AFRL_AFSEL2_Pos) | (AF_USART2 << GPIO_AFRL_AFSEL3_Pos);
+    GPIOA->MODER = (GPIOA->MODER & ~(GPIO_MODER_MODE2 | GPIO_MODER_MODE3)) | GPIO_MODER_MODE2_1 |
+                   GPIO_MODER_MODE3_1;
+    /* RX idles high; the pull-up holds it there while nothing is connected. */
+    GPIOA->PUPDR = (GPIOA->PUPDR & ~GPIO_PUPDR_PUPD3) | GPIO_PUPDR_PUPD3_0;
 
     /* SPI1: PA5 (SCK) and PA7 (MOSI). The panel is write-only here, so MISO stays unrouted. */
     GPIOA->AFR[0] = (GPIOA->AFR[0] & ~(GPIO_AFRL_AFSEL5 | GPIO_AFRL_AFSEL7)) |
@@ -69,4 +84,9 @@ void board_lcd_reset(bool asserted)
 void SysTick_Handler(void)
 {
     atomic_fetch_add_explicit(&uptime_ms, 1u, memory_order_relaxed);
+}
+
+void USART2_IRQHandler(void)
+{
+    uart_irq_handler(UART_CONSOLE);
 }

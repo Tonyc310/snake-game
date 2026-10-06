@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/** Enables clocks, routes SPI1 and the LCD's control pins, and starts the 1 ms tick. */
+/** Enables clocks, routes the console UART, SPI1 and the LCD's pins, and starts the 1 ms tick. */
 void board_init(void);
 
 /** Milliseconds since board_init(); wraps after about 49 days. */

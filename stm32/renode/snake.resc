@@ -13,6 +13,7 @@ machine LoadPlatformDescription $ORIGIN/nucleo-f446re.repl
 sysbus.nvic Frequency 16000000
 
 showAnalyzer sysbus.spi1.lcd
+showAnalyzer sysbus.usart2
 
 macro reset
 """
