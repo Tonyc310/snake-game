@@ -1,7 +1,11 @@
 #include "render.h"
 
+#include "font.h"
+#include "format.h"
 #include "lcd.h"
 
+#include <limits.h>
+#include <stdbool.h>
 #include <string.h>
 
 /* The desktop game's colours. */
@@ -10,19 +14,37 @@
 #define BODY LCD_RGB(22u, 163u, 74u)
 #define HEAD LCD_RGB(74u, 222u, 128u)
 #define FOOD LCD_RGB(239u, 68u, 68u)
+#define TEXT LCD_RGB(243u, 244u, 246u)
+#define MUTED LCD_RGB(156u, 163u, 175u)
 
 /* Gaps around the squares, so neighbouring segments read as separate cells and food looks small. */
 #define SEGMENT_INSET 1u
 #define FOOD_INSET 4u
 
+#define LARGE 2u /* text scale on the score line */
+#define SMALL 1u
+#define HUD_MARGIN 8u
+#define SCORE_LINE_Y 8u
+#define HINT_LINE_Y 32u
+
+/* The score line reads "SCORE 123  BEST 123"; these are its character columns. */
+#define SCORE_LABEL_COLUMN 0u
+#define SCORE_COLUMN 6u
+#define BEST_LABEL_COLUMN 11u
+#define BEST_COLUMN 16u
+#define NUMBER_DIGITS 3u
+
 _Static_assert((GAME_WIDTH * RENDER_CELL) == LCD_WIDTH, "the board spans the screen");
 _Static_assert(RENDER_HUD + (GAME_HEIGHT * RENDER_CELL) == LCD_HEIGHT,
                "the board fills the screen below the score bar");
+_Static_assert(GAME_MAX_LENGTH - 3 < 1000, "a score fits in three digits");
 
 typedef enum { CELL_UNDRAWN, CELL_EMPTY, CELL_FOOD, CELL_BODY, CELL_HEAD } cell_t;
 
 /* What the panel shows now. A step changes only about three cells, so only those get sent. */
 static cell_t shown[GAME_HEIGHT][GAME_WIDTH];
+static unsigned shown_score;
+static unsigned shown_best;
 
 static void fill_square(uint16_t left, uint16_t top, uint16_t inset, uint16_t colour)
 {
@@ -52,13 +74,59 @@ static void draw_cell(int x, int y, cell_t cell)
     }
 }
 
+/* Glyphs are drawn opaque, so new text covers old text without clearing it first. */
+static void draw_text(uint16_t x, uint16_t y, uint16_t scale, uint16_t colour, const char *text)
+{
+    const uint16_t size = (uint16_t)(FONT_SIZE * scale);
+
+    for (; *text != '\0'; text++) {
+        const uint8_t *glyph = font_glyph(*text);
+
+        lcd_begin_pixels(x, y, size, size);
+        for (uint16_t row = 0u; row < size; row++) {
+            for (uint16_t column = 0u; column < size; column++) {
+                const bool lit = ((glyph[row / scale] >> (column / scale)) & 1u) != 0u;
+
+                lcd_write_pixel(lit ? colour : BACKGROUND);
+            }
+        }
+        lcd_end_pixels();
+        x = (uint16_t)(x + size);
+    }
+}
+
+static uint16_t score_line_x(unsigned column)
+{
+    return (uint16_t)(HUD_MARGIN + (column * FONT_SIZE * LARGE));
+}
+
+/* Padded with spaces, so a shorter number fully covers a longer one, as after a restart. */
+static void draw_number(unsigned column, unsigned value)
+{
+    char text[FORMAT_UINT_SIZE];
+    size_t length = format_uint(text, value);
+
+    while (length < NUMBER_DIGITS) {
+        text[length] = ' ';
+        length++;
+    }
+    text[length] = '\0';
+    draw_text(score_line_x(column), SCORE_LINE_Y, LARGE, TEXT, text);
+}
+
 void render_init(void)
 {
     lcd_fill_rect(0u, 0u, LCD_WIDTH, LCD_HEIGHT, BACKGROUND);
+    draw_text(score_line_x(SCORE_LABEL_COLUMN), SCORE_LINE_Y, LARGE, TEXT, "SCORE");
+    draw_text(score_line_x(BEST_LABEL_COLUMN), SCORE_LINE_Y, LARGE, TEXT, "BEST");
+    draw_text(HUD_MARGIN, HINT_LINE_Y, SMALL, MUTED, "ARROW KEYS OR WASD TO STEER");
+
     (void)memset(shown, 0, sizeof shown); /* CELL_UNDRAWN, so the next frame draws every cell */
+    shown_score = UINT_MAX;               /* nor are any numbers drawn yet */
+    shown_best = UINT_MAX;
 }
 
-void render_game(const game_t *game)
+void render_game(const game_t *game, unsigned best)
 {
     cell_t wanted[GAME_HEIGHT][GAME_WIDTH];
 
@@ -85,5 +153,14 @@ void render_game(const game_t *game)
                 shown[y][x] = wanted[y][x];
             }
         }
+    }
+
+    if (game->score != shown_score) {
+        draw_number(SCORE_COLUMN, game->score);
+        shown_score = game->score;
+    }
+    if (best != shown_best) {
+        draw_number(BEST_COLUMN, best);
+        shown_best = best;
     }
 }

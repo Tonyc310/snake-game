@@ -109,14 +109,28 @@ void lcd_fill_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint
         height = (uint16_t)(LCD_HEIGHT - y);
     }
 
+    lcd_begin_pixels(x, y, width, height);
+    for (uint32_t count = (uint32_t)width * height; count > 0u; count--) {
+        lcd_write_pixel(colour);
+    }
+    lcd_end_pixels();
+}
+
+void lcd_begin_pixels(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
+{
     send_range(CMD_COLUMN_ADDRESS_SET, x, (uint16_t)(x + width - 1u));
     send_range(CMD_PAGE_ADDRESS_SET, y, (uint16_t)(y + height - 1u));
-
-    /* Pixels go high byte first and fill the window row by row. */
     begin_command(CMD_MEMORY_WRITE);
-    for (uint32_t count = (uint32_t)width * height; count > 0u; count--) {
-        spi_send((uint8_t)(colour >> 8));
-        spi_send((uint8_t)colour);
-    }
+}
+
+/* High byte first; the panel fills the window row by row. */
+void lcd_write_pixel(uint16_t colour)
+{
+    spi_send((uint8_t)(colour >> 8));
+    spi_send((uint8_t)colour);
+}
+
+void lcd_end_pixels(void)
+{
     end_transfer();
 }

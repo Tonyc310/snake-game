@@ -1,4 +1,5 @@
 #include "board.h"
+#include "format.h"
 #include "game.h"
 #include "keys.h"
 #include "lcd.h"
@@ -14,7 +15,8 @@
 /* The F446 has no hardware random-number generator, so the opening board is the same every boot. */
 #define OPENING_SEED 1u
 
-static game_t game; /* about 2 KB, kept off the stack */
+static game_t game;   /* about 2 KB, kept off the stack */
+static unsigned best; /* best score this session */
 static keys_decoder_t keys;
 
 static void print(const char *text)
@@ -23,23 +25,13 @@ static void print(const char *text)
     (void)uart_write(UART_CONSOLE, (const uint8_t *)text, strlen(text));
 }
 
-/* printf isn't linked into this firmware, so the score is formatted by hand. */
 static void print_score(const char *label, unsigned score)
 {
-    char digits[10]; /* enough for any 32-bit value */
-    size_t count = 0u;
+    char digits[FORMAT_UINT_SIZE];
 
-    do {
-        digits[count] = (char)('0' + (score % 10u));
-        count++;
-        score /= 10u;
-    } while (score > 0u);
-
+    (void)format_uint(digits, score);
     print(label);
-    while (count > 0u) {
-        count--;
-        (void)uart_write(UART_CONSOLE, (const uint8_t *)&digits[count], 1u);
-    }
+    print(digits);
     print("\r\n");
 }
 
@@ -78,7 +70,7 @@ int main(void)
     lcd_init();
     render_init();
     game_init(&game, OPENING_SEED);
-    render_game(&game);
+    render_game(&game, best);
     print("snake: steer with the arrow keys or WASD\r\n");
 
     for (;;) {
@@ -106,7 +98,10 @@ int main(void)
 
             last_step_ms += game_step_ms(&game);
             game_step(&game);
-            render_game(&game);
+            if (game.score > best) {
+                best = game.score;
+            }
+            render_game(&game, best);
             report(score_before);
         }
         __WFI(); /* until the next tick or a received byte */

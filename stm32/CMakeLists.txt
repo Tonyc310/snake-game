@@ -28,7 +28,7 @@ target_compile_definitions(cmsis_device PUBLIC STM32F446xx)
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/stm32f446re.ld)
 
-add_executable(stm32-snake main.c board.c keys.c lcd.c render.c
+add_executable(stm32-snake main.c board.c font.c format.c keys.c lcd.c render.c
     ${stm32_uart_driver_SOURCE_DIR}/src/uart.c
     ${stm32_uart_driver_SOURCE_DIR}/src/ring_buffer.c)
 # The driver finds this board's uart_ports.h here.
